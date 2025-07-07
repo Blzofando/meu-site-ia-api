@@ -1,21 +1,18 @@
-// 1. Importar as ferramentas necessárias
 import express from 'express';
 import cors from 'cors';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import 'dotenv/config'; // Importa o dotenv para carregar variáveis de ambiente
+import 'dotenv/config';
 
-// 2. Configurar o servidor Express
+// Configuração do servidor
 const app = express();
-app.use(express.json()); // Permite que o servidor entenda JSON
-app.use(cors()); // Habilita o CORS para aceitar requisições do nosso site
-
+app.use(express.json());
+app.use(cors());
 const port = process.env.PORT || 3000;
 
-// 3. Inicializar o cliente da IA do Google
-// O process.env.GOOGLE_API_KEY virá do nosso arquivo .env
+// Inicializa o cliente da IA
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-// Função que monta o nosso prompt (a mesma de antes)
+// =================== ENDPOINT DE ROTEIRO (SEM MUDANÇAS) ===================
 const getMasterPrompt = (temaDoUsuario) => {
   return `[INSTRUÇÃO SISTEMA]
 Você é um roteirista mestre, especializado em criar conteúdo sombrio, curioso e visualmente impactante para vídeos verticais (TikTok, Shorts, Reels). Seu conhecimento abrange fatos históricos perturbadores, bizarrices culturais e os segredos mais bem guardados da humanidade.
@@ -55,65 +52,58 @@ O tema do vídeo é: "${temaDoUsuario}"
 Gere o roteiro seguindo TODAS as regras acima, escolhendo o cenário mais apropriado para o tema.`;
 };
 
-// 4. Criar o nosso endpoint (a "porta" da nossa API)
 app.post('/api/generate-roteiro', async (req, res) => {
-  console.log('Recebido pedido para /api/generate-roteiro');
+  console.log('Recebido pedido para gerar roteiro');
   try {
     const { tema } = req.body;
-    if (!tema) {
-      return res.status(400).json({ error: 'O tema é obrigatório.' });
-    }
+    if (!tema) return res.status(400).json({ error: 'O tema é obrigatório.' });
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
     const prompt = getMasterPrompt(tema);
-    
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-
-    // Devolve o roteiro com sucesso
     res.status(200).json({ roteiro: text });
-
   } catch (error) {
-    console.error("Erro detalhado na API:", error);
+    console.error("Erro ao gerar roteiro:", error);
     res.status(500).json({ error: 'Erro ao gerar o roteiro.' });
   }
 });
-// NOVO E CORRETO ENDPOINT PARA GERAR ÁUDIO (VERSÃO GEMINI)
+
+
+// =================== ENDPOINT DE ÁUDIO (VERSÃO FINAL E CORRETA) ===================
 app.post('/api/generate-audio', async (req, res) => {
-  console.log('Recebido pedido para gerar áudio via API Gemini');
-  
+  console.log('Recebido pedido para gerar áudio com o modelo TTS oficial');
   try {
     const { texto } = req.body;
     if (!texto) {
       return res.status(400).json({ error: 'O texto do roteiro é obrigatório.' });
     }
 
-    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-    // Usamos um modelo "text-only" para gerar o áudio a partir do texto
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" }); 
+    // 1. Especificamos que a tarefa é Text-to-Speech
+    const model = genAI.getGenerativeModel({ model: "tts-1-hd" });
 
-    console.log("Enviando pedido para a API Gemini TTS...");
-
-    // A mágica está aqui, no generationConfig
+    // 2. Montamos o prompt de estilo + texto
+    const styleInstruction = "Narre com voz jovem, envolvente e expressiva. Use tom de surpresa e curiosidade, variando a intensidade para destacar o absurdo. Comece com energia e termine de forma descontraída.";
+    const fullTextToSynthesize = `${styleInstruction}. O texto a ser narrado é: ${texto}`;
+    
+    console.log("Enviando pedido para o modelo tts-1-hd com a voz: enceladus...");
+    
+    // 3. Geramos o conteúdo de áudio
     const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: texto }] }],
-      generationConfig: {
-        // Isso diz à API para responder com áudio
-        responseMimeType: "audio/mpeg", 
-      },
+      text: fullTextToSynthesize,
+      voice: "enceladus", // A voz que você escolheu
+      // Não precisamos de 'generationConfig' ou 'speechConfig' complexos aqui
     });
 
-    const response = await result.response;
-    // O áudio vem codificado em base64
-    const audioBase64 = response.candidates[0].content.parts[0].inlineData.data;
-    // Convertemos de base64 para um buffer de áudio binário
+    // 4. Processamos a resposta
+    const audioBase64 = result.response.candidates[0].content.parts[0].inlineData.data;
     const audioBuffer = Buffer.from(audioBase64, 'base64');
-    
+
     console.log("Áudio recebido com sucesso!");
 
-    // Envia o áudio de volta para o navegador
-    res.set('Content-Type', 'audio/mpeg');
+    // 5. Enviamos o áudio como um arquivo MP3 (o padrão deste modelo)
+    res.set('Content-Type', 'audio/mp3');
     res.send(audioBuffer);
 
   } catch (error) {
@@ -122,9 +112,8 @@ app.post('/api/generate-audio', async (req, res) => {
   }
 });
 
-// 5. Iniciar o servidor
+
+// Iniciar o servidor (sempre no final)
 app.listen(port, () => {
   console.log(`Servidor rodando na porta ${port}`);
-  // --- ADICIONE ESTA LINHA DE DEBUG ---
-  console.log("Chave carregada do .env:", process.env.GOOGLE_API_KEY ? `...${process.env.GOOGLE_API_KEY.slice(-4)}` : "NÃO FOI CARREGADA");
 });
