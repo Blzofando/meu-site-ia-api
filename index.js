@@ -1,7 +1,3 @@
-// =================================================================
-// ARQUIVO FINAL E CORRETO - index.js
-// =================================================================
-
 import express from 'express';
 import cors from 'cors';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -42,10 +38,10 @@ Primeiro, analise o tema do usuário. Se ele se parece mais com um tópico únic
     * Take 7: Encerramento que amarra as curiosidades e deixa uma impressão forte.
 
 [EXEMPLO DE FORMATAÇÃO DA RESPOSTA]
-**TAKE 1** - [Descrição da cena 2D sombria aqui]
+**TAKE 1**
 [Texto da narração impactante aqui]
 
-**TAKE 2** - [Descrição da próxima cena imersiva]
+**TAKE 2** 
 [Texto da narração]
 ... e assim por diante.
 
@@ -74,7 +70,6 @@ app.post('/api/generate-roteiro', async (req, res) => {
   }
 });
 
-
 // =================== ENDPOINT DE ÁUDIO (USANDO GEMINI TTS) ===================
 app.post('/api/generate-audio', async (req, res) => {
   console.log('Recebido pedido para gerar áudio com Gemini TTS');
@@ -92,12 +87,24 @@ app.post('/api/generate-audio', async (req, res) => {
     
     console.log("Enviando pedido para o modelo tts-1-hd com a voz: enceladus...");
     
-    // A chamada correta para a API, como nos exemplos oficiais,
-    // passa um objeto com a propriedade `prompt`.
+    // A chamada correta para a API, passando um objeto com a propriedade `input`, `voice` e `audioConfig`
     const result = await model.synthesizeSpeech({
-      text: fullTextToSynthesize,
-      voice: "enceladus",
+      input: {
+        text: fullTextToSynthesize,
+      },
+      voice: {
+        name: "enceladus",  // Nome da voz escolhida
+        languageCode: "pt-BR",  // Agora usando português (Brasil)
+      },
+      audioConfig: {
+        audioEncoding: "MP3",  // Codificação do áudio
+      },
     });
+
+    // Verificando se a resposta contém o conteúdo de áudio
+    if (!result.audioContent) {
+      throw new Error('Nenhum conteúdo de áudio retornado');
+    }
 
     const audioBuffer = Buffer.from(result.audioContent, 'base64');
 
@@ -111,7 +118,6 @@ app.post('/api/generate-audio', async (req, res) => {
     res.status(500).json({ error: 'Erro ao gerar o áudio.' });
   }
 });
-
 
 // --- Iniciar o Servidor ---
 app.listen(port, () => {
