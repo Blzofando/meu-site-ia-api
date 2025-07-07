@@ -1,5 +1,5 @@
 // =================================================================
-// API FINAL E LIMPA - SÓ GERA ROTEIRO
+// API FINAL COMPLETA - Roteiro e Prompts de Imagem
 // =================================================================
 
 import express from 'express';
@@ -16,7 +16,11 @@ const port = process.env.PORT || 3000;
 // --- Inicialização da IA ---
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-// --- Função de Prompt ---
+// =================================================================
+// FUNÇÕES DE PROMPT (Nossas "Receitas")
+// =================================================================
+
+// Função de Prompt para gerar ROTEIROS
 const getMasterPrompt = (temaDoUsuario) => {
   return `[INSTRUÇÃO SISTEMA]
 Você é um roteirista mestre, especializado em criar conteúdo sombrio, curioso e visualmente impactante para vídeos verticais (TikTok, Shorts, Reels). Seu conhecimento abrange fatos históricos perturbadores, bizarrices culturais e os segredos mais bem guardados da humanidade.
@@ -56,7 +60,38 @@ O tema do vídeo é: "${temaDoUsuario}"
 Gere o roteiro seguindo TODAS as regras acima, escolhendo o cenário mais apropriado para o tema.`;
 };
 
-// --- Endpoint da API ---
+// Função de Prompt para gerar PROMPTS DE IMAGEM
+const getImageMasterPrompt = (roteiro) => {
+  return `[TAREFA]
+Sua tarefa é atuar como um diretor de arte e gerar prompts de imagem detalhados para a plataforma Midjourney, baseados no roteiro de vídeo fornecido.
+
+[REGRAS DE GERAÇÃO]
+1.  Para cada "TAKE" do roteiro, você deve criar exatamente 3 prompts de imagem distintos, explorando diferentes cenas, personagens ou elementos descritos no take.
+2.  Cada prompt deve descrever claramente o ambiente, personagens, cores, iluminação e atmosfera, com foco em detalhes que transmitam mistério, tensão e um clima histórico sombrio.
+3.  NÃO adicione o sufixo de estilo no final de cada prompt. O sufixo será adicionado separadamente pelo usuário. Apenas gere a descrição da cena.
+
+[ROTEIRO FORNECIDO]
+${roteiro}
+
+[FORMATO DE SAÍDA OBRIGATÓRIO]
+Responda estritamente no seguinte formato, sem nenhuma introdução ou texto adicional:
+Take 1 — [descrição geral e bem resumida do take em uma linha]
+— Prompt 1: [descrição detalhada do primeiro prompt]
+— Prompt 2: [descrição detalhada do segundo prompt]
+— Prompt 3: [descrição detalhada do terceiro prompt]
+Take 2 — [descrição geral e bem resumida do take em uma linha]
+— Prompt 1: [descrição detalhada do primeiro prompt]
+— Prompt 2: [descrição detalhada do segundo prompt]
+— Prompt 3: [descrição detalhada do terceiro prompt]
+...e assim por diante para todos os takes.`;
+};
+
+
+// =================================================================
+// ENDPOINTS DA API (Nossos "Guichês de Atendimento")
+// =================================================================
+
+// Endpoint para gerar ROTEIRO
 app.post('/api/generate-roteiro', async (req, res) => {
   console.log('Recebido pedido para /api/generate-roteiro');
   try {
@@ -74,6 +109,30 @@ app.post('/api/generate-roteiro', async (req, res) => {
     res.status(500).json({ error: 'Erro ao gerar o roteiro.' });
   }
 });
+
+// Endpoint para gerar PROMPTS DE IMAGEM
+app.post('/api/generate-image-prompts', async (req, res) => {
+  console.log('Recebido pedido para /api/generate-image-prompts');
+  try {
+    const { roteiro } = req.body;
+    if (!roteiro) {
+      return res.status(400).json({ error: 'O roteiro é obrigatório.' });
+    }
+
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+    const prompt = getImageMasterPrompt(roteiro);
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    res.status(200).json({ prompts: text });
+
+  } catch (error) {
+    console.error("Erro ao gerar prompts de imagem:", error);
+    res.status(500).json({ error: 'Erro ao gerar os prompts de imagem.' });
+  }
+});
+
 
 // --- Iniciar o Servidor ---
 app.listen(port, () => {
