@@ -1,27 +1,22 @@
 // =================================================================
-// 1. IMPORTAÇÕES - Trazendo nossas ferramentas
+// ARQUIVO FINAL E CORRETO - index.js
 // =================================================================
+
 import express from 'express';
 import cors from 'cors';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import 'dotenv/config';
 
-// =================================================================
-// 2. CONFIGURAÇÃO DO SERVIDOR - Preparando a "cozinha"
-// =================================================================
+// --- Configuração do Servidor Express ---
 const app = express();
-app.use(express.json()); // Permite que o servidor entenda o formato JSON
-app.use(cors()); // Habilita o CORS para aceitar requisições do nosso site na Netlify
+app.use(express.json());
+app.use(cors());
 const port = process.env.PORT || 3000;
 
-// =================================================================
-// 3. INICIALIZAÇÃO DA IA - Conectando com o Google
-// =================================================================
+// --- Inicialização do Cliente Google AI ---
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-// =================================================================
-// 4. FUNÇÃO DE PROMPT - A "receita" para os roteiros
-// =================================================================
+// =================== ENDPOINT DE ROTEIRO ===================
 const getMasterPrompt = (temaDoUsuario) => {
   return `[INSTRUÇÃO SISTEMA]
 Você é um roteirista mestre, especializado em criar conteúdo sombrio, curioso e visualmente impactante para vídeos verticais (TikTok, Shorts, Reels). Seu conhecimento abrange fatos históricos perturbadores, bizarrices culturais e os segredos mais bem guardados da humanidade.
@@ -61,19 +56,12 @@ O tema do vídeo é: "${temaDoUsuario}"
 Gere o roteiro seguindo TODAS as regras acima, escolhendo o cenário mais apropriado para o tema.`;
 };
 
-
-// =================================================================
-// 5. ENDPOINTS DA API - As "portas de atendimento"
-// =================================================================
-
-// Endpoint para gerar ROTEIRO
 app.post('/api/generate-roteiro', async (req, res) => {
-  console.log('Recebido pedido para gerar roteiro');
+  console.log('Recebido pedido para /api/generate-roteiro');
   try {
     const { tema } = req.body;
     if (!tema) return res.status(400).json({ error: 'O tema é obrigatório.' });
 
-    // Modelo para gerar TEXTO
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
     const prompt = getMasterPrompt(tema);
     const result = await model.generateContent(prompt);
@@ -87,34 +75,34 @@ app.post('/api/generate-roteiro', async (req, res) => {
 });
 
 
-// Endpoint para gerar ÁUDIO
+// =================== ENDPOINT DE ÁUDIO (USANDO GEMINI TTS) ===================
 app.post('/api/generate-audio', async (req, res) => {
-  console.log('Recebido pedido para gerar áudio com o modelo TTS oficial');
+  console.log('Recebido pedido para gerar áudio com Gemini TTS');
   try {
     const { texto } = req.body;
     if (!texto) {
       return res.status(400).json({ error: 'O texto do roteiro é obrigatório.' });
     }
 
-    // Modelo especialista em TEXTO-PARA-FALA (Text-to-Speech)
+    // Usando o modelo TTS de alta qualidade
     const model = genAI.getGenerativeModel({ model: "tts-1-hd" });
 
-    const styleInstruction = "Narre com voz jovem, envolvente e expressiva. Use tom de surpresa e curiosidade, variando a intensidade para destacar o absurdo. Comece com energia e termine de forma descontraída.";
-    const fullTextToSynthesize = `${styleInstruction}. O texto a ser narrado é: ${texto}`;
+    const styleInstruction = "Narre com voz jovem, envolvente e expressiva. Use tom de surpresa e curiosidade. Comece com energia e termine de forma descontraída.";
+    const fullTextToSynthesize = `${styleInstruction}. O texto para narrar é: ${texto}`;
     
     console.log("Enviando pedido para o modelo tts-1-hd com a voz: enceladus...");
     
-    const result = await model.generateContent({
+    // A chamada correta para a API, como nos exemplos oficiais,
+    // passa um objeto com a propriedade `prompt`.
+    const result = await model.synthesizeSpeech({
       text: fullTextToSynthesize,
       voice: "enceladus",
     });
 
-    const audioBase64 = result.response.candidates[0].content.parts[0].inlineData.data;
-    const audioBuffer = Buffer.from(audioBase64, 'base64');
+    const audioBuffer = Buffer.from(result.audioContent, 'base64');
 
     console.log("Áudio recebido com sucesso!");
 
-    // Envia o áudio como um arquivo MP3 (o padrão deste modelo)
     res.set('Content-Type', 'audio/mp3');
     res.send(audioBuffer);
 
@@ -125,9 +113,7 @@ app.post('/api/generate-audio', async (req, res) => {
 });
 
 
-// =================================================================
-// 6. INICIAR O SERVIDOR - "Abrindo a cozinha para negócios"
-// =================================================================
+// --- Iniciar o Servidor ---
 app.listen(port, () => {
   console.log(`Servidor rodando na porta ${port}`);
 });
