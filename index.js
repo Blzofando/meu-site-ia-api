@@ -1,18 +1,22 @@
+// =================================================================
+// API FINAL E LIMPA - SÓ GERA ROTEIRO
+// =================================================================
+
 import express from 'express';
 import cors from 'cors';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import 'dotenv/config';
 
-// --- Configuração do Servidor Express ---
+// --- Configuração do Servidor ---
 const app = express();
 app.use(express.json());
 app.use(cors());
 const port = process.env.PORT || 3000;
 
-// --- Inicialização do Cliente Google AI ---
+// --- Inicialização da IA ---
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-// =================== ENDPOINT DE ROTEIRO ===================
+// --- Função de Prompt ---
 const getMasterPrompt = (temaDoUsuario) => {
   return `[INSTRUÇÃO SISTEMA]
 Você é um roteirista mestre, especializado em criar conteúdo sombrio, curioso e visualmente impactante para vídeos verticais (TikTok, Shorts, Reels). Seu conhecimento abrange fatos históricos perturbadores, bizarrices culturais e os segredos mais bem guardados da humanidade.
@@ -38,10 +42,10 @@ Primeiro, analise o tema do usuário. Se ele se parece mais com um tópico únic
     * Take 7: Encerramento que amarra as curiosidades e deixa uma impressão forte.
 
 [EXEMPLO DE FORMATAÇÃO DA RESPOSTA]
-**TAKE 1** - [Descrição da cena 2D sombria aqui]
+**TAKE 1**
 [Texto da narração impactante aqui]
 
-**TAKE 2** - [Descrição da próxima cena imersiva]
+**TAKE 2**
 [Texto da narração]
 ... e assim por diante.
 
@@ -52,6 +56,7 @@ O tema do vídeo é: "${temaDoUsuario}"
 Gere o roteiro seguindo TODAS as regras acima, escolhendo o cenário mais apropriado para o tema.`;
 };
 
+// --- Endpoint da API ---
 app.post('/api/generate-roteiro', async (req, res) => {
   console.log('Recebido pedido para /api/generate-roteiro');
   try {
@@ -67,45 +72,6 @@ app.post('/api/generate-roteiro', async (req, res) => {
   } catch (error) {
     console.error("Erro ao gerar roteiro:", error);
     res.status(500).json({ error: 'Erro ao gerar o roteiro.' });
-  }
-});
-
-// =================== ENDPOINT DE ÁUDIO (USANDO GEMINI TTS) ===================
-app.post('/api/generate-audio', async (req, res) => {
-  console.log('Recebido pedido para gerar áudio com Gemini TTS');
-  try {
-    const { texto } = req.body;
-    if (!texto) {
-      return res.status(400).json({ error: 'O texto do roteiro é obrigatório.' });
-    }
-
-    // Usando o modelo TTS de alta qualidade do Gemini
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro-preview-tts" });
-
-    const styleInstruction = "Narre com voz jovem, envolvente e expressiva. Use tom de surpresa e curiosidade. Comece com energia e termine de forma descontraída.";
-    const fullTextToSynthesize = `${styleInstruction}. O texto para narrar é: ${texto}`;
-
-    // A chamada correta para o modelo Gemini TTS
-    const result = await model.generateContent(fullTextToSynthesize, {
-      responseModalities: ['AUDIO'],
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: {
-            voiceName: 'enceladus', // A voz específica que você solicitou
-          }
-        }
-      }
-    });
-
-    const audioContent = result.audioContent;
-    const audioBuffer = Buffer.from(audioContent, 'base64');
-
-    res.set('Content-Type', 'audio/mp3');
-    res.send(audioBuffer);
-
-  } catch (error) {
-    console.error("Erro detalhado na geração de áudio:", error);
-    res.status(500).json({ error: 'Erro ao gerar o áudio.' });
   }
 });
 
