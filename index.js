@@ -58,7 +58,7 @@ O tema do vídeo é: "${temaDoUsuario}"
 
 [AÇÃO]
 Gere o roteiro seguindo TODAS as regras acima, escolhendo o cenário mais apropriado para o tema.`;
-};;
+};
 
 // Função para gerar PROMPTS DE IMAGEM
 const getImageMasterPrompt = (roteiro) => {
@@ -86,7 +86,7 @@ Take 2 — [descrição geral e bem resumida do take em uma linha]
 ...e assim por diante para todos os takes.`;
 };
 
-// NOVA Função para gerar PROMPTS DE MOVIMENTO
+// Função para gerar PROMPTS DE MOVIMENTO
 const getMotionMasterPrompt = (imagePrompts) => {
   return `[TAREFA]
 Sua tarefa é atuar como um diretor de cinematografia e criar prompts de movimento detalhados para uma IA de geração de vídeo, baseados nos prompts de imagem fornecidos.
@@ -156,7 +156,7 @@ app.post('/api/generate-image-prompts', async (req, res) => {
   }
 });
 
-// NOVO Endpoint para PROMPTS DE MOVIMENTO
+// Endpoint para PROMPTS DE MOVIMENTO
 app.post('/api/generate-motion-prompts', async (req, res) => {
   console.log('Recebido pedido para /api/generate-motion-prompts');
   try {
