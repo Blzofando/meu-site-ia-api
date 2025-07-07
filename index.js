@@ -38,10 +38,10 @@ Primeiro, analise o tema do usuário. Se ele se parece mais com um tópico únic
     * Take 7: Encerramento que amarra as curiosidades e deixa uma impressão forte.
 
 [EXEMPLO DE FORMATAÇÃO DA RESPOSTA]
-**TAKE 1**
+**TAKE 1** - [Descrição da cena 2D sombria aqui]
 [Texto da narração impactante aqui]
 
-**TAKE 2** 
+**TAKE 2** - [Descrição da próxima cena imersiva]
 [Texto da narração]
 ... e assim por diante.
 
@@ -79,36 +79,26 @@ app.post('/api/generate-audio', async (req, res) => {
       return res.status(400).json({ error: 'O texto do roteiro é obrigatório.' });
     }
 
-    // Usando o modelo TTS de alta qualidade
-    const model = genAI.getGenerativeModel({ model: "tts-1-hd" });
+    // Usando o modelo TTS de alta qualidade do Gemini
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro-preview-tts" });
 
     const styleInstruction = "Narre com voz jovem, envolvente e expressiva. Use tom de surpresa e curiosidade. Comece com energia e termine de forma descontraída.";
     const fullTextToSynthesize = `${styleInstruction}. O texto para narrar é: ${texto}`;
-    
-    console.log("Enviando pedido para o modelo tts-1-hd com a voz: enceladus...");
-    
-    // A chamada correta para a API, passando um objeto com a propriedade `input`, `voice` e `audioConfig`
-    const result = await model.synthesizeSpeech({
-      input: {
-        text: fullTextToSynthesize,
-      },
-      voice: {
-        name: "enceladus",  // Nome da voz escolhida
-        languageCode: "pt-BR",  // Agora usando português (Brasil)
-      },
-      audioConfig: {
-        audioEncoding: "MP3",  // Codificação do áudio
-      },
+
+    // A chamada correta para o modelo Gemini TTS
+    const result = await model.generateContent(fullTextToSynthesize, {
+      responseModalities: ['AUDIO'],
+      speechConfig: {
+        voiceConfig: {
+          prebuiltVoiceConfig: {
+            voiceName: 'enceladus', // A voz específica que você solicitou
+          }
+        }
+      }
     });
 
-    // Verificando se a resposta contém o conteúdo de áudio
-    if (!result.audioContent) {
-      throw new Error('Nenhum conteúdo de áudio retornado');
-    }
-
-    const audioBuffer = Buffer.from(result.audioContent, 'base64');
-
-    console.log("Áudio recebido com sucesso!");
+    const audioContent = result.audioContent;
+    const audioBuffer = Buffer.from(audioContent, 'base64');
 
     res.set('Content-Type', 'audio/mp3');
     res.send(audioBuffer);
