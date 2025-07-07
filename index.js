@@ -79,6 +79,48 @@ app.post('/api/generate-roteiro', async (req, res) => {
     res.status(500).json({ error: 'Erro ao gerar o roteiro.' });
   }
 });
+// NOVO E CORRETO ENDPOINT PARA GERAR ÁUDIO (VERSÃO GEMINI)
+app.post('/api/generate-audio', async (req, res) => {
+  console.log('Recebido pedido para gerar áudio via API Gemini');
+  
+  try {
+    const { texto } = req.body;
+    if (!texto) {
+      return res.status(400).json({ error: 'O texto do roteiro é obrigatório.' });
+    }
+
+    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+    // Usamos um modelo "text-only" para gerar o áudio a partir do texto
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" }); 
+
+    console.log("Enviando pedido para a API Gemini TTS...");
+
+    // A mágica está aqui, no generationConfig
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: texto }] }],
+      generationConfig: {
+        // Isso diz à API para responder com áudio
+        responseMimeType: "audio/mpeg", 
+      },
+    });
+
+    const response = await result.response;
+    // O áudio vem codificado em base64
+    const audioBase64 = response.candidates[0].content.parts[0].inlineData.data;
+    // Convertemos de base64 para um buffer de áudio binário
+    const audioBuffer = Buffer.from(audioBase64, 'base64');
+    
+    console.log("Áudio recebido com sucesso!");
+
+    // Envia o áudio de volta para o navegador
+    res.set('Content-Type', 'audio/mpeg');
+    res.send(audioBuffer);
+
+  } catch (error) {
+    console.error("Erro detalhado na geração de áudio:", error);
+    res.status(500).json({ error: 'Erro ao gerar o áudio.' });
+  }
+});
 
 // 5. Iniciar o servidor
 app.listen(port, () => {
